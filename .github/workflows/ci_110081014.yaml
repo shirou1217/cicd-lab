@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Typecheck, Format Check, and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript typecheck
+        run: npm run typecheck
+
+      - name: Prettier check
+        run: npm run format:check
+
+      - name: Create test results directory
+        run: mkdir -p test-results
+
+      - name: Run tests with JUnit output
+        run: npm run test:ci
+
+      - name: Publish test results
+        if: always()
+        uses: dorny/test-reporter@v2
+        with:
+          name: Vitest Results
+          path: test-results/vitest.junit.xml
+          reporter: java-junit
